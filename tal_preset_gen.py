@@ -13,7 +13,8 @@ from typing import Dict, List, Optional, Tuple
 AUDIO_EXTS = {".wav", ".aif", ".aiff", ".flac", ".ogg"}
 IGNORE_EXTS = {".reapeaks", ".asd"}
 
-NOTE_RE = re.compile(r"\b([A-Ga-g])([#bB]?)(-?\d+)\b")
+# Match notes even when surrounded by "_" (underscore is a "word char", so \b fails)
+NOTE_RE = re.compile(r"(?:^|[^A-Za-z0-9])([A-Ga-g])([#bB]?)(-?\d+)(?=$|[^A-Za-z0-9])")
 
 NOTE_TO_SEMI = {
     "C": 0, "C#": 1, "DB": 1,
@@ -63,15 +64,16 @@ def auto_detect(name, middle_c):
 
     return root, vel
 
-def list_samples(folder):
-    out = []
-    for fn in os.listdir(folder):
-        p = os.path.join(folder, fn)
-        if not os.path.isfile(p):
-            continue
-        ext = os.path.splitext(fn)[1].lower()
-        if ext in AUDIO_EXTS:
-            out.append(p)
+def list_samples(folder: str) -> List[str]:
+    folder = os.path.abspath(os.path.expanduser(folder))
+    out: List[str] = []
+    for root, _dirs, files in os.walk(folder):
+        for fn in files:
+            ext = os.path.splitext(fn)[1].lower()
+            if ext in IGNORE_EXTS:
+                continue
+            if ext in AUDIO_EXTS:
+                out.append(os.path.join(root, fn))
     return sorted(out)
 
 def compute_key_ranges(sorted_roots, low_spread=None, high_spread=None):
